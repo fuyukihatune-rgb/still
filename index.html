@@ -207,11 +207,12 @@
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const STORAGE_KEY  = 'still_v1';
-const APP_VERSION  = '1.0.0';
+const APP_VERSION  = '1.1.0';
 const VERSION_KEY  = 'still_version';
 const TERMS_VERSION = 1;
 
 const WHATS_NEW = [
+  "きろくをファイルに書き出して保存・復元できる「バックアップ」を追加しました（設定）",
   "Still をリリースしました。呼吸ガイドと 5-4-3-2-1 グラウンディングで、今ここにそっと戻る時間にどうぞ。",
 ];
 
@@ -710,6 +711,36 @@ function closeSettings() { showSettings = false; render(); }
 
 function activeDonations() { return DONATIONS.filter(function(d) { return d.address && d.address.trim(); }); }
 
+function exportBackup() {
+  try {
+    var data = {};
+    for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); data[k] = localStorage.getItem(k); }
+    var payload = { app: 'still', type: 'backup', version: APP_VERSION, exportedAt: new Date().toISOString(), data: data };
+    var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var dt = new Date(); var stamp = '' + dt.getFullYear() + String(dt.getMonth()+1).padStart(2,'0') + String(dt.getDate()).padStart(2,'0');
+    var a = document.createElement('a'); a.href = url; a.download = 'still-backup-' + stamp + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+    showToast('バックアップを書き出しました');
+  } catch (e) { showToast('書き出しに失敗しました'); }
+}
+function onBackupFilePick(ev) {
+  var file = (ev.target.files || [])[0]; ev.target.value = ''; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function() {
+    var payload; try { payload = JSON.parse(reader.result); } catch (e) { showToast('このファイルは読み込めませんでした'); return; }
+    if (!payload || payload.app !== 'still' || !payload.data) { showToast('Stillのバックアップファイルではありません'); return; }
+    if (!confirm('バックアップから復元します。今のデータはファイルの内容に置きかわります。続けますか？')) return;
+    try { Object.keys(payload.data).forEach(function(k){ localStorage.setItem(k, payload.data[k]); }); }
+    catch (e) { showToast('復元に失敗しました'); return; }
+    showToast('復元しました');
+    setTimeout(function(){ location.reload(); }, 600);
+  };
+  reader.onerror = function() { showToast('読み込みに失敗しました'); };
+  reader.readAsText(file);
+}
+
 function renderSettings() {
   const standalone = isInStandaloneMode();
   const ios = isIOS();
@@ -746,6 +777,12 @@ function renderSettings() {
     + '<div class="stat-row"><span class="stat-row-label">今日の呼吸</span><span class="stat-row-val">' + countToday('breath') + ' 回</span></div>'
     + '<div class="stat-row"><span class="stat-row-label">今日のグラウンディング</span><span class="stat-row-val">' + countToday('ground') + ' 回</span></div>'
     + '<div class="stat-row"><span class="stat-row-label">これまでの合計</span><span class="stat-row-val">' + state.sessions.length + ' 回</span></div>'
+    + '</div>'
+    + '<div class="card settings-section">'
+    + '<div class="settings-label">バックアップ（書き出し・復元）</div>'
+    + '<div class="settings-desc">きろくをファイルに書き出して保存できます。機種変更や故障に備えて、ときどき書き出しておくと安心です。復元すると、今のデータはファイルの内容に置きかわります。</div>'
+    + '<button class="btn-secondary" style="width:100%;margin-bottom:8px" onclick="exportBackup()">バックアップを書き出す</button>'
+    + '<label class="btn-secondary" style="display:block;text-align:center;width:100%;cursor:pointer">バックアップから復元<input type="file" accept="application/json,.json" hidden onchange="onBackupFilePick(event)" /></label>'
     + '</div>'
     + '<div class="card settings-section">'
     + '<div class="settings-label">プライバシーと注意</div>'
