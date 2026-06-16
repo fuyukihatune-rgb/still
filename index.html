@@ -200,6 +200,10 @@
   @media (prefers-reduced-motion: reduce) {
     .orb { transition-timing-function: ease; }
   }
+
+  /* キーボードアクセシビリティ */
+  :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 4px; }
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 </style>
 </head>
 <body>
